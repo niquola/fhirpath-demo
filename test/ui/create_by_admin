@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head profile="http://selenium-ide.openqa.org/profiles/test-case">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link rel="selenium.base" href="http://localhost:5000/" />
+<title>Create by admin</title>
+</head>
+<body>
+<table cellpadding="1" cellspacing="1" border="1">
+<thead>
+<tr><td rowspan="1" colspan="3">Create by admin</td></tr>
+</thead><tbody>
+<tr>
+	<td>setSpeed</td>
+	<td>100</td>
+	<td></td>
+</tr>
+<tr>
+	<td>open</td>
+	<td>/</td>
+	<td></td>
+</tr>
+<tr>
+	<td>open</td>
+	<td>/#/signout</td>
+	<td></td>
+</tr>
+<tr>
+	<td>storeLocation</td>
+	<td>url</td>
+	<td></td>
+</tr>
+<tr>
+	<td>selectWindow</td>
+	<td>null</td>
+	<td></td>
+</tr>
+<tr>
+	<td>clickAndWait</td>
+	<td>link=Вход</td>
+	<td></td>
+</tr>
+<tr>
+	<td>type</td>
+	<td>name=user[email]</td>
+	<td>administrator</td>
+</tr>
+<tr>
+	<td>type</td>
+	<td>name=user[password]</td>
+	<td>pass@word1</td>
+</tr>
+<tr>
+	<td>clickAndWait</td>
+	<td>//button[@type='submit']</td>
+	<td></td>
+</tr>
+<tr>
+	<td>assertLocation</td>
+	<td>${url}</td>
+	<td></td>
+</tr>
+<tr>
+	<td>assertElementPresent</td>
+	<td>//a[contains(@href, '/admin.html#/')]</td>
+	<td></td>
+</tr>
+<tr>
+	<td>assertElementPresent</td>
+	<td>//a[contains(@href, '/admin.html#/users')]</td>
+	<td></td>
+</tr>
+<tr>
+	<td>type</td>
+	<td>//input[@type='text']</td>
+	<td>№ 4 К</td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>//button[@type='submit']</td>
+	<td></td>
+</tr>
+<tr>
+	<td>waitForElementPresent</td>
+	<td>//b[text()='Санкт-Петербургское государственное бюджетное учреждение здравоохранения &quot;Городская больница №40 Курортного района&quot; 1111']</td>
+	<td></td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>//b[text()='Санкт-Петербургское государственное бюджетное учреждение здравоохранения &quot;Городская больница №40 Курортного района&quot; 1111']</td>
+	<td></td>
+</tr>
+<tr>
+	<td>storeLocation</td>
+	<td>head</td>
+	<td></td>
+</tr>
+<tr>
+	<td>waitForVisible</td>
+	<td>css=.add-org</td>
+	<td></td>
+</tr>
+<tr>
+	<td>clickAndWait</td>
+	<td>css=.add-org a.add-btn</td>
+	<td></td>
+</tr>
+<tr>
+	<td>waitForText</td>
+	<td>css=h3</td>
+	<td>Создание мед. объекта</td>
+</tr>
+<tr>
+	<td>verifyText</td>
+	<td>css=h3</td>
+	<td>Создание мед. объекта</td>
+</tr>
+<tr>
+	<td>storeEval</td>
+	<td>Math.floor(Math.random()*11111)</td>
+	<td>rnd</td>
+</tr>
+<tr>
+	<td>store</td>
+	<td>Создание тестового мед объекта №${rnd}</td>
+	<td>testorgname</td>
+</tr>
+<tr>
+	<td>type</td>
+	<td>//div[@id='view']/div/form/div/input</td>
+	<td>${testorgname}</td>
+</tr>
+<tr>
+	<td>select</td>
+	<td>//div[@id='view']/div/form/div[3]/select</td>
+	<td>label=Амбулатории</td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>css=option[value=&quot;Амбулатории&quot;]</td>
+	<td></td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>//div[@id='view']/div/form/div[4]/input</td>
+	<td></td>
+</tr>
+<tr>
+	<td>type</td>
+	<td>//div[@id='view']/div/form/div[4]/input</td>
+	<td>Большая морская</td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>//button[@type='submit']</td>
+	<td></td>
+</tr>
+<tr>
+	<td>waitForElementPresent</td>
+	<td>//div[@id='view']/div/div[3]/div[2]/a/div/p[text()=&quot;${testorgname}&quot;]</td>
+	<td></td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>//p[text()=&quot;${testorgname}&quot;]</td>
+	<td></td>
+</tr>
+<tr>
+	<td>clickAndWait</td>
+	<td>link=${testorgname}</td>
+	<td></td>
+</tr>
+<tr>
+	<td>waitForElementPresent</td>
+	<td>link=Головное отделение</td>
+	<td></td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>link=Головное отделение</td>
+	<td></td>
+</tr>
+<tr>
+	<td>assertLocation</td>
+	<td>${head}</td>
+	<td></td>
+</tr>
+<tr>
+	<td>waitForText</td>
+	<td>//p[text()='${testorgname}']</td>
+	<td>${testorgname}</td>
+</tr>
+<tr>
+	<td>verifyText</td>
+	<td>//p[text()='${testorgname}']</td>
+	<td>${testorgname}</td>
+</tr>
+</tbody></table>
+</body>
+</html>

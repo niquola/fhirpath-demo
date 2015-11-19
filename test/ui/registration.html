@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head profile="http://selenium-ide.openqa.org/profiles/test-case">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link rel="selenium.base" href="http://localhost:5000/" />
+<title>Registration</title>
+</head>
+<body>
+<table cellpadding="1" cellspacing="1" border="1">
+<thead>
+<tr><td rowspan="1" colspan="3">Registration</td></tr>
+</thead><tbody>
+<tr>
+	<td>setSpeed</td>
+	<td>200</td>
+	<td></td>
+</tr>
+<tr>
+	<td>open</td>
+	<td>/</td>
+	<td></td>
+</tr>
+<tr>
+	<td>open</td>
+	<td>/#/signout</td>
+	<td></td>
+</tr>
+<tr>
+	<td>storeLocation</td>
+	<td>url</td>
+	<td></td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>link=Регистрация</td>
+	<td></td>
+</tr>
+<tr>
+	<td>waitForElementPresent</td>
+	<td>//input[@type='email']</td>
+	<td></td>
+</tr>
+<tr>
+	<td>type</td>
+	<td>//input[@type='email']</td>
+	<td>javascript{&quot;murad-bei@yandex.ru&quot;;}</td>
+</tr>
+<tr>
+	<td>type</td>
+	<td>//input[@type='password']</td>
+	<td>password</td>
+</tr>
+<tr>
+	<td>type</td>
+	<td>//input[@ng-model='new_user.data.phone']</td>
+	<td>123456789</td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>css=span.ng-binding</td>
+	<td></td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>css=span.ng-binding</td>
+	<td></td>
+</tr>
+<tr>
+	<td>type</td>
+	<td>//div[@id='view']/div/div/div/div/form/div[4]/input</td>
+	<td>10</td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>//div[@id='medorgs']/fs-row/div/ul/li[4]/a/span/span</td>
+	<td></td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>id=submit</td>
+	<td></td>
+</tr>
+<tr>
+	<td>waitForText</td>
+	<td>css=h3</td>
+	<td>Подтвердите ваш email</td>
+</tr>
+<tr>
+	<td>verifyText</td>
+	<td>css=h3</td>
+	<td>Подтвердите ваш email</td>
+</tr>
+<tr>
+	<td>assertLocation</td>
+	<td>${url}instructions</td>
+	<td></td>
+</tr>
+</tbody></table>
+</body>
+</html>
