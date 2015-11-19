@@ -9,6 +9,7 @@
     "coffee": "latest",
     "coffee-loader": "latest",
     "coffee-script": "latest",
+    "less": "latest",
     "less-loader": "latest",
     "css-loader": "latest",
     "postcss-loader": "latest",

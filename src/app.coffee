@@ -39,9 +39,9 @@ app.controller 'IndexCtrl', ($scope) ->
       $scope.result = JSON.stringify(result[1], null, "  ")
       $scope.errors = []
     catch e
-      console.log('ERROR', e)
       if e.errors
         $scope.errors = e.errors
+        console.log("ERROR", e.errors)
       else
         $scope.error = e.toString()
         # throw e

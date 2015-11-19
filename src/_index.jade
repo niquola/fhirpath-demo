@@ -1,16 +1,17 @@
 .main-menu.row
-  .col-xs-12
-    h3 fhir path demo
+  .container
+    .col-xs-12
+        h3 fhir path demo
 .container
   br
   .row
     .col-xs-12
       input.form-control(placeholder="fhir path" ng-model="path" ng-change="update()")
       br
-      ul(ng-repeat = "er in errors")
-       li {{er[4]}}
-      .alert
-        pre {{error}}
+      .alert.alert-danger(ng-if = "errors.length > 0")
+        ul(ng-repeat = "er in errors")
+          li {{er[4]}}
+      .alert.alert-danger(ng-if = "error") {{error}}
   .row
     .col-xs-6
       textarea.fh.form-control(ng-model="resource" ui-codemirror="codemirrorConfig" ng-change="update()")
