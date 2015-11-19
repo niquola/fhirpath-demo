@@ -370,20 +370,63 @@
 
 		'use strict';
 
+		function _typeof(obj) { return obj && typeof Symbol !== "undefined" && obj.constructor === Symbol ? "symbol" : typeof obj; }
+
 		var antlr4 = __webpack_require__(1);
 		var fhirpath = __webpack_require__(46);
 		var util = __webpack_require__(50);
 		var coerce = {
+		    integer: function integer(v) {
+		        if (!util.isArray(v)) {
+		            throw new Error("can't boolean coerce nonarray" + v);
+		        }
+		        if (v.length !== 1) {
+		            return NaN;
+		        }
+		        return parseInt(v[0]);
+		    },
 		    boolean: function boolean(v) {
-		        console.log("coercing", v);
-		        if (v === false) return false;
-		        if (util.isArray(v)) return coerce.boolean(v[0]);
+		        if (!util.isArray(v)) {
+		            throw new Error("can't boolean coerce nonarray" + v);
+		        }
+		        if (v.length === 1 && (v[0] === true || v[0] === false)) {
+		            return v[0];
+		        }
+
+		        if (v.length === 0) {
+		            return false;
+		        }
+
 		        return true;
 		    }
 		};
 
+		var applyToEach = function applyToEach(fn) {
+		    return function (coll) {
+		        for (var _len = arguments.length, rest = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+		            rest[_key - 1] = arguments[_key];
+		        }
+
+		        return coll.flatMap(function (item) {
+		            return fn.apply(null, [item].concat(rest));
+		        });
+		    };
+		};
+
+		var resolveArguments = function resolveArguments(fn) {
+		    return function (coll) {
+		        for (var _len2 = arguments.length, rest = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+		            rest[_key2 - 1] = arguments[_key2];
+		        }
+
+		        return fn.apply(null, [coll].concat(rest.map(function (i) {
+		            return execute(coll, i);
+		        })));
+		    };
+		};
+
 		var functionBank = {
-		    "$path": function $path(item, segment, recurse) {
+		    "$path": applyToEach(function (item, segment, recurse) {
 		        if (item.resourceType && item.resourceType === segment) {
 		            return item;
 		        }
@@ -396,16 +439,71 @@
 		        }
 		        return segments.flatMap(function (s) {
 		            return item[s];
+		        }).filter(function (x) {
+		            return !!x;
 		        });
-		    },
-		    "$where": function $where(item, conditions) {
-		        var keep = execute([item], conditions);
-		        console.log("keep", keep, coerce.boolean(keep));
-		        return coerce.boolean(keep) ? item : [];
-		    },
+		    }),
+		    "$where": applyToEach(function (item, conditions) {
+		        return coerce.boolean(execute([item], conditions)) ? [item] : [];
+		    }),
 		    "$constant": function $constant(_, val) {
-		        return val;
-		    }
+		        return [val];
+		    },
+		    "$first": function $first(coll) {
+		        return coll.slice(0, 1);
+		    },
+		    "$last": function $last(coll) {
+		        return coll.slice(-1);
+		    },
+		    "$tail": function $tail(coll) {
+		        return coll.slice(1);
+		    },
+		    "$item": resolveArguments(function (coll, i) {
+		        return coll.slice(i, i + 1);
+		    }),
+		    "$skip": resolveArguments(function (coll, i) {
+		        return coll.slice(i);
+		    }),
+		    "$take": resolveArguments(function (coll, i) {
+		        return coll.slice(0, i);
+		    }),
+		    // TODO: Clarify what collections are accepted by substring
+		    "$substring": resolveArguments(function (coll, start, count) {
+		        if (coll.length !== 1) return [];
+		        if (typeof coll[0] !== "string") return [];
+		        var input = coll[0];
+		        var end = count !== undefined ? start + count : input.length;
+		        return [input.slice(start, end)];
+		    }),
+		    "$empty": function $empty(coll) {
+		        return [coll.length === 0];
+		    },
+		    "$not": function $not(coll) {
+		        return [!coerce.boolean(coll)];
+		    },
+		    "$all": function $all(coll, conditions) {
+		        return [functionBank.$where(coll, conditions).length === coll.length];
+		    },
+		    "$any": function $any(coll, conditions) {
+		        return [functionBank.$where(coll, conditions).length > 0];
+		    },
+		    "$count": function $count(coll) {
+		        return [coll.length];
+		    },
+		    // TODO how does asInteger convert "5.6", or *numbers* e.g. from count()?
+		    "$asInteger": resolveArguments(function (coll) {
+		        var val = coerce.integer(coll);
+		        return isNaN(val) ? [] : [val];
+		    })
+		};
+
+		// TODO startsWith probably needs an argument
+		// and why does .startsWith act as a filter, while .matches returns a boolean?
+		var whenSingle = function whenSingle(fn) {
+		    return function (lhs, rhs) {
+		        if (lhs.length !== 1 || rhs.length !== 1) return [];
+		        return fn(lhs[0], rhs[0]);
+		    };
 		};
 
 		var operatorBank = {
@@ -416,6 +514,27 @@
 		    },
 		    "|": function _(lhs, rhs) {
 		        return lhs.concat(rhs);
+		    },
+		    "+": whenSingle(function (lhs, rhs) {
+		        if ((typeof lhs === 'undefined' ? 'undefined' : _typeof(lhs)) !== (typeof rhs === 'undefined' ? 'undefined' : _typeof(rhs))) return [];
+		        return [lhs + rhs];
+		    }),
+		    "-": whenSingle(function (lhs, rhs) {
+		        if ((typeof lhs === 'undefined' ? 'undefined' : _typeof(lhs)) !== (typeof rhs === 'undefined' ? 'undefined' : _typeof(rhs))) return [];
+		        return [lhs - rhs];
+		    }),
+		    "&": whenSingle(function (lhs, rhs) {
+		        if ((typeof lhs === 'undefined' ? 'undefined' : _typeof(lhs)) !== (typeof rhs === 'undefined' ? 'undefined' : _typeof(rhs))) return [];
+		        return [lhs + rhs];
+		    }),
+		    "and": function and(lhs, rhs) {
+		        return [coerce.boolean(lhs) && coerce.boolean(rhs)];
+		    },
+		    "or": function or(lhs, rhs) {
+		        return [coerce.boolean(lhs) || coerce.boolean(rhs)];
+		    },
+		    "xor": function xor(lhs, rhs) {
+		        return [coerce.boolean(lhs) !== coerce.boolean(rhs)];
 		    }
 		};
 
@@ -432,21 +551,14 @@
 		    }
 
 		    return tree.reduce(function (coll, cur) {
+		        if (util.isArray(cur[0])) {
+		            return [coll].concat(execute(coll, cur[0]));
+		        }
 		        var fnName = cur[0];
 		        var fn = functionBank[fnName];
-		        if (fn) return coll.flatMap(function (item) {
-		            return fn.apply(null, [item].concat(cur.slice(1)));
-		        });
+		        if (fn) return fn.apply(null, [coll].concat(cur.slice(1)));
 
-		        var op = operatorBank[fnName];
-		        if (op) {
-		            console.log("call pop", coll, cur[1]);
-		            var lhs = execute(coll, cur[1]);
-		            var rhs = execute(coll, cur[2]);
-		            var ret = op(lhs, rhs);
-		            console.log("op returnied", ret);
-		            return ret;
-		        }
+		        return operatorBank[fnName](execute(coll, cur[1]), execute(coll, cur[2]));
 		    }, coll);
 		}
 
@@ -13021,7 +13133,6 @@
 
 
 		  var tree = parser.expr();
-		  console.log("Tree done wiht", errors)
 		  if (errors.length > 0) {
 		    var e = new Error();
 		    e.errors = errors;
@@ -13655,7 +13766,6 @@
 		    this.ruleIndex = fhirpathParser.RULE_expr;
 		    this.ret = null
 		    this.a = null; // ExprContext
-		    this._expr = null; // ExprContext
 		    this._predicate = null; // PredicateContext
 		    this._fp_const = null; // Fp_constContext
 		    this.op = null; // Token
@@ -13727,10 +13837,10 @@
 		            this.state = 42;
 		            this.match(fhirpathParser.T__0);
 		            this.state = 43;
-		            localctx._expr = this.expr(0);
+		            localctx.a = this.expr(0);
 		            this.state = 44;
 		            this.match(fhirpathParser.T__1);
-		            localctx.ret = [localctx.ret]
+		            localctx.ret = localctx.a.ret
 		            break;
 
 		        case 2:
@@ -13777,7 +13887,7 @@
 		                        this.consume();
 		                    }
 		                    this.state = 57;
-		                    localctx.b = localctx._expr = this.expr(9);
+		                    localctx.b = this.expr(9);
 		                    localctx.ret= [(localctx.op===null ? null : localctx.op.text), localctx.a.ret, localctx.b.ret]
 		                    break;
 
@@ -13799,7 +13909,7 @@
 		                        this.consume();
 		                    }
 		                    this.state = 62;
-		                    localctx.b = localctx._expr = this.expr(8);
+		                    localctx.b = this.expr(8);
 		                    localctx.ret= [(localctx.op===null ? null : localctx.op.text), localctx.a.ret, localctx.b.ret]
 		                    break;
 
@@ -13821,7 +13931,7 @@
 		                        this.consume();
 		                    }
 		                    this.state = 67;
-		                    localctx.b = localctx._expr = this.expr(7);
+		                    localctx.b = this.expr(7);
 		                    localctx.ret= [(localctx.op===null ? null : localctx.op.text), localctx.a.ret, localctx.b.ret]
 		                    break;
 
@@ -13836,7 +13946,7 @@
 		                    this.state = 71;
 		                    localctx.op = this.match(fhirpathParser.COMP);
 		                    this.state = 72;
-		                    localctx.b = localctx._expr = this.expr(6);
+		                    localctx.b = this.expr(6);
 		                    localctx.ret= [(localctx.op===null ? null : localctx.op.text), localctx.a.ret, localctx.b.ret]
 		                    break;
 
@@ -13851,7 +13961,7 @@
 		                    this.state = 76;
 		                    localctx.op = this.match(fhirpathParser.LOGIC);
 		                    this.state = 77;
-		                    localctx.b = localctx._expr = this.expr(5);
+		                    localctx.b = this.expr(5);
 		                    localctx.ret= [(localctx.op===null ? null : localctx.op.text), localctx.a.ret, localctx.b.ret]
 		                    break;
 
