@@ -7,8 +7,12 @@
     .col-xs-12
       input.form-control(placeholder="fhir path" ng-model="path" ng-change="update()")
       br
+      ul(ng-repeat = "er in errors")
+       li {{er[4]}}
+      .alert
+        pre {{error}}
   .row
     .col-xs-6
-      textarea.fh.form-control(ng-model="resource" ui-codemirror="codemirrorConfig")
+      textarea.fh.form-control(ng-model="resource" ui-codemirror="codemirrorConfig" ng-change="update()")
     .col-xs-6
       textarea.fh.form-control(ng-model="result" ui-codemirror="codemirrorConfig")

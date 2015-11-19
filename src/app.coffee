@@ -5,11 +5,15 @@ require('ng-cache?!jade-env-html!./_index.jade')
 require('./app.less')
 require('angular-ui-codemirror')
 
+fpath = require('../fhirpath.js/build/bundle.js')
+# console.log(fpath)
+
 app = angular.module('app', [
   'ngCookies'
   'ngRoute'
   'ngAnimate'
   'ui.codemirror'
+  # 'firebase'
 ])
 
 app.run ($rootScope, $window) ->
@@ -26,10 +30,22 @@ app.config ($routeProvider) ->
 
 
 app.controller 'IndexCtrl', ($scope) ->
-  $scope.path = 'Patient.name.given'
+  $scope.path = 'Patient.name.given |  Patient.name.given'
   $scope.resource = '{"resourceType": "Patient", "name": [{"given": ["John"]}]}'
   $scope.update = ()->
-    $scope.result = $scope.path
+    try
+      console.log($scope.path)
+      result = fpath(JSON.parse($scope.resource),$scope.path)
+      $scope.result = JSON.stringify(result[1], null, "  ")
+      $scope.errors = []
+    catch e
+      console.log('ERROR', e)
+      if e.errors
+        $scope.errors = e.errors
+      else
+        $scope.error = e.toString()
+        # throw e
+  $scope.update()
 
   console.log('here')
   codemirrorExtraKeys = window.CodeMirror.normalizeKeyMap

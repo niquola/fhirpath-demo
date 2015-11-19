@@ -1,0 +1,3 @@
+[submodule "fhirpath.js"]
+	path = fhirpath.js
+	url = https://github.com/jmandel/fhirpath.js.git
