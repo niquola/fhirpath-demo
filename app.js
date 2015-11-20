@@ -58,7 +58,7 @@
 
 	fpath = __webpack_require__(11);
 
-	app = angular.module('app', ['ngCookies', 'ngRoute', 'ngAnimate', 'ui.codemirror']);
+	app = angular.module('app', ['ngCookies', 'ngRoute', 'ngAnimate', 'ui.codemirror', 'firebase']);
 
 	app.run(function($rootScope, $window) {
 	  return console.log('run');
@@ -78,19 +78,55 @@
 	  });
 	});
 
-	app.controller('IndexCtrl', function($scope) {
-	  var codemirrorExtraKeys;
+	app.controller('IndexCtrl', function($scope, $firebaseObject) {
+	  var Save, codemirrorExtraKeys, fbRef;
+	  fbRef = new Firebase("https://fhirpath.firebaseio.com/");
+	  $scope.examples = $firebaseObject(fbRef);
+	  Save = function(data, cb) {
+	    var obj, ref;
+	    if (!(data || data.name)) {
+	      return;
+	    }
+	    ref = new Firebase("https://fhirpath.firebaseio.com/" + data.name);
+	    obj = $firebaseObject(ref);
+	    return obj.$loaded().then(function() {
+	      console.log("loaded", obj);
+	      obj.path = data.path;
+	      obj.name = data.name;
+	      obj.resource = data.resource;
+	      return obj.$save().then(function() {
+	        return cb();
+	      });
+	    });
+	  };
+	  $scope.saveExample = function() {
+	    $scope.saving = "Saving...";
+	    return Save({
+	      path: $scope.path,
+	      name: $scope.exampleName,
+	      resource: $scope.resource
+	    }, function() {
+	      return $scope.saving = null;
+	    });
+	  };
 	  $scope.path = 'Patient.name.given |  Patient.name.given';
 	  $scope.resource = '{"resourceType": "Patient", "name": [{"given": ["John"]}]}';
 	  $scope.update = function() {
-	    var e, error, result;
+	    var e, error, error1, resource, result;
 	    try {
-	      console.log($scope.path);
-	      result = fpath(JSON.parse($scope.resource), $scope.path);
-	      $scope.result = JSON.stringify(result[1], null, "  ");
-	      return $scope.errors = [];
+	      resource = JSON.parse($scope.resource);
+	      $scope.parseError = null;
 	    } catch (error) {
 	      e = error;
+	      $scope.parseError = e.toString();
+	      return;
+	    }
+	    try {
+	      result = fpath(resource, $scope.path);
+	      $scope.result = JSON.stringify(result[1], null, "  ");
+	      return $scope.errors = null;
+	    } catch (error1) {
+	      e = error1;
 	      if (e.errors) {
 	        $scope.errors = e.errors;
 	        return console.log("ERROR", e.errors);
@@ -100,7 +136,12 @@
 	    }
 	  };
 	  $scope.update();
-	  console.log('here');
+	  $scope.selectExample = function(ex) {
+	    $scope.resource = ex.resource;
+	    $scope.path = ex.path;
+	    $scope.exampleName = ex.name;
+	    return $scope.update();
+	  };
 	  codemirrorExtraKeys = window.CodeMirror.normalizeKeyMap({
 	    "Ctrl-Space": function() {
 	      return $scope.$apply('doMapping()');
@@ -139,7 +180,7 @@
 /* 5 */
 /***/ function(module, exports) {
 
-	var v1="<div class=\"main-menu row\"><div class=\"container\"><div class=\"col-xs-10\"><h3> FHIRpath<small> fhir path implementation in js</small></h3></div><div class=\"col-xs-2\"><h3><a href=\"https://github.com/jmandel/fhirpath.js\">src/</a></h3></div></div></div><div class=\"container\"><br><div class=\"row\"><div class=\"col-xs-12\"><input placeholder=\"fhir path\" ng-model=\"path\" ng-change=\"update()\" class=\"form-control\"><br><div ng-if=\"errors.length &gt; 0\" class=\"alert alert-danger\"><ul ng-repeat=\"er in errors\"><li>{{er[4]}}</li></ul></div><div ng-if=\"error\" class=\"alert alert-danger\">{{error}}</div></div></div><div class=\"row\"><div class=\"col-xs-6\"><textarea ng-model=\"resource\" ui-codemirror=\"codemirrorConfig\" ng-change=\"update()\" class=\"fh form-control\"></textarea></div><div class=\"col-xs-6\"><textarea ng-model=\"result\" ui-codemirror=\"codemirrorConfig\" class=\"fh form-control\"></textarea></div></div></div>";
+	var v1="<div class=\"main-menu row\"><div class=\"container\"><div class=\"col-xs-10\"><h3> FHIRpath<small> fhir path implementation in js</small></h3></div><div class=\"col-xs-2\"><h3><a href=\"https://github.com/jmandel/fhirpath.js\">src/</a></h3></div></div></div><div class=\"container\"><br>Examples: &nbsp;<span ng-repeat=\"(k,ex) in examples\"><a ng-click=\"selectExample(ex)\">{{ex.name}} </a>&nbsp;</span></div><div class=\"container\"><br><div class=\"row\"><div class=\"col-xs-8\"><input placeholder=\"fhir path\" ng-model=\"path\" ng-change=\"update()\" class=\"form-control\"><br><div ng-if=\"errors\" class=\"alert alert-danger\"><ul ng-repeat=\"er in errors\"><li>{{er[4]}}</li></ul></div><div ng-if=\"error\" class=\"alert alert-danger\">{{error}}</div></div><div class=\"col-xs-3\"><input placeholder=\"Save as\" ng-model=\"exampleName\" class=\"form-control\"></div><div class=\"col-xs-1\"><button ng-click=\"saveExample()\" class=\"btn btn-success\">Save</button></div></div><div class=\"row\"><div class=\"col-xs-8\"><textarea ng-model=\"resource\" ui-codemirror=\"codemirrorConfig\" ng-change=\"update()\" class=\"fh form-control\"></textarea><br><div ng-if=\"parseError\" class=\"alert alert-danger\">{{parseError}}</div></div><div class=\"col-xs-4\"><textarea ng-model=\"result\" ui-codemirror=\"codemirrorConfig\" class=\"fh form-control\"></textarea></div></div></div>";
 	window.angular.module(["ng"]).run(["$templateCache",function(c){c.put("_index.jade", v1)}]);
 	module.exports=v1;
 
@@ -370,63 +411,20 @@
 
 		'use strict';
 
-		function _typeof(obj) { return obj && typeof Symbol !== "undefined" && obj.constructor === Symbol ? "symbol" : typeof obj; }
-
 		var antlr4 = __webpack_require__(1);
 		var fhirpath = __webpack_require__(46);
 		var util = __webpack_require__(50);
 		var coerce = {
-		    integer: function integer(v) {
-		        if (!util.isArray(v)) {
-		            throw new Error("can't boolean coerce nonarray" + v);
-		        }
-		        if (v.length !== 1) {
-		            return NaN;
-		        }
-		        return parseInt(v[0]);
-		    },
 		    boolean: function boolean(v) {
-		        if (!util.isArray(v)) {
-		            throw new Error("can't boolean coerce nonarray" + v);
-		        }
-		        if (v.length === 1 && (v[0] === true || v[0] === false)) {
-		            return v[0];
-		        }
-
-		        if (v.length === 0) {
-		            return false;
-		        }
-
+		        console.log("coercing", v);
+		        if (v === false) return false;
+		        if (util.isArray(v)) return coerce.boolean(v[0]);
 		        return true;
 		    }
 		};
 
-		var applyToEach = function applyToEach(fn) {
-		    return function (coll) {
-		        for (var _len = arguments.length, rest = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-		            rest[_key - 1] = arguments[_key];
-		        }
-
-		        return coll.flatMap(function (item) {
-		            return fn.apply(null, [item].concat(rest));
-		        });
-		    };
-		};
-
-		var resolveArguments = function resolveArguments(fn) {
-		    return function (coll) {
-		        for (var _len2 = arguments.length, rest = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-		            rest[_key2 - 1] = arguments[_key2];
-		        }
-
-		        return fn.apply(null, [coll].concat(rest.map(function (i) {
-		            return execute(coll, i);
-		        })));
-		    };
-		};
-
 		var functionBank = {
-		    "$path": applyToEach(function (item, segment, recurse) {
+		    "$path": function $path(item, segment, recurse) {
 		        if (item.resourceType && item.resourceType === segment) {
 		            return item;
 		        }
@@ -439,71 +437,16 @@
 		        }
 		        return segments.flatMap(function (s) {
 		            return item[s];
-		        }).filter(function (x) {
-		            return !!x;
 		        });
-		    }),
-		    "$where": applyToEach(function (item, conditions) {
-		        return coerce.boolean(execute([item], conditions)) ? [item] : [];
-		    }),
+		    },
+		    "$where": function $where(item, conditions) {
+		        var keep = execute([item], conditions);
+		        console.log("keep", keep, coerce.boolean(keep));
+		        return coerce.boolean(keep) ? item : [];
+		    },
 		    "$constant": function $constant(_, val) {
-		        return [val];
-		    },
-		    "$first": function $first(coll) {
-		        return coll.slice(0, 1);
-		    },
-		    "$last": function $last(coll) {
-		        return coll.slice(-1);
-		    },
-		    "$tail": function $tail(coll) {
-		        return coll.slice(1);
-		    },
-		    "$item": resolveArguments(function (coll, i) {
-		        return coll.slice(i, i + 1);
-		    }),
-		    "$skip": resolveArguments(function (coll, i) {
-		        return coll.slice(i);
-		    }),
-		    "$take": resolveArguments(function (coll, i) {
-		        return coll.slice(0, i);
-		    }),
-		    // TODO: Clarify what collections are accepted by substring
-		    "$substring": resolveArguments(function (coll, start, count) {
-		        if (coll.length !== 1) return [];
-		        if (typeof coll[0] !== "string") return [];
-		        var input = coll[0];
-		        var end = count !== undefined ? start + count : input.length;
-		        return [input.slice(start, end)];
-		    }),
-		    "$empty": function $empty(coll) {
-		        return [coll.length === 0];
-		    },
-		    "$not": function $not(coll) {
-		        return [!coerce.boolean(coll)];
-		    },
-		    "$all": function $all(coll, conditions) {
-		        return [functionBank.$where(coll, conditions).length === coll.length];
-		    },
-		    "$any": function $any(coll, conditions) {
-		        return [functionBank.$where(coll, conditions).length > 0];
-		    },
-		    "$count": function $count(coll) {
-		        return [coll.length];
-		    },
-		    // TODO how does asInteger convert "5.6", or *numbers* e.g. from count()?
-		    "$asInteger": resolveArguments(function (coll) {
-		        var val = coerce.integer(coll);
-		        return isNaN(val) ? [] : [val];
-		    })
-		};
-
-		// TODO startsWith probably needs an argument
-		// and why does .startsWith act as a filter, while .matches returns a boolean?
-		var whenSingle = function whenSingle(fn) {
-		    return function (lhs, rhs) {
-		        if (lhs.length !== 1 || rhs.length !== 1) return [];
-		        return fn(lhs[0], rhs[0]);
-		    };
+		        return val;
+		    }
 		};
 
 		var operatorBank = {
@@ -514,27 +457,6 @@
 		    },
 		    "|": function _(lhs, rhs) {
 		        return lhs.concat(rhs);
-		    },
-		    "+": whenSingle(function (lhs, rhs) {
-		        if ((typeof lhs === 'undefined' ? 'undefined' : _typeof(lhs)) !== (typeof rhs === 'undefined' ? 'undefined' : _typeof(rhs))) return [];
-		        return [lhs + rhs];
-		    }),
-		    "-": whenSingle(function (lhs, rhs) {
-		        if ((typeof lhs === 'undefined' ? 'undefined' : _typeof(lhs)) !== (typeof rhs === 'undefined' ? 'undefined' : _typeof(rhs))) return [];
-		        return [lhs - rhs];
-		    }),
-		    "&": whenSingle(function (lhs, rhs) {
-		        if ((typeof lhs === 'undefined' ? 'undefined' : _typeof(lhs)) !== (typeof rhs === 'undefined' ? 'undefined' : _typeof(rhs))) return [];
-		        return [lhs + rhs];
-		    }),
-		    "and": function and(lhs, rhs) {
-		        return [coerce.boolean(lhs) && coerce.boolean(rhs)];
-		    },
-		    "or": function or(lhs, rhs) {
-		        return [coerce.boolean(lhs) || coerce.boolean(rhs)];
-		    },
-		    "xor": function xor(lhs, rhs) {
-		        return [coerce.boolean(lhs) !== coerce.boolean(rhs)];
 		    }
 		};
 
@@ -551,14 +473,21 @@
 		    }
 
 		    return tree.reduce(function (coll, cur) {
-		        if (util.isArray(cur[0])) {
-		            return [coll].concat(execute(coll, cur[0]));
-		        }
 		        var fnName = cur[0];
 		        var fn = functionBank[fnName];
-		        if (fn) return fn.apply(null, [coll].concat(cur.slice(1)));
+		        if (fn) return coll.flatMap(function (item) {
+		            return fn.apply(null, [item].concat(cur.slice(1)));
+		        });
 
-		        return operatorBank[fnName](execute(coll, cur[1]), execute(coll, cur[2]));
+		        var op = operatorBank[fnName];
+		        if (op) {
+		            console.log("call pop", coll, cur[1]);
+		            var lhs = execute(coll, cur[1]);
+		            var rhs = execute(coll, cur[2]);
+		            var ret = op(lhs, rhs);
+		            console.log("op returnied", ret);
+		            return ret;
+		        }
 		    }, coll);
 		}
 
@@ -13133,6 +13062,7 @@
 
 
 		  var tree = parser.expr();
+		  console.log("Tree done wiht", errors)
 		  if (errors.length > 0) {
 		    var e = new Error();
 		    e.errors = errors;
@@ -13766,6 +13696,7 @@
 		    this.ruleIndex = fhirpathParser.RULE_expr;
 		    this.ret = null
 		    this.a = null; // ExprContext
+		    this._expr = null; // ExprContext
 		    this._predicate = null; // PredicateContext
 		    this._fp_const = null; // Fp_constContext
 		    this.op = null; // Token
@@ -13837,10 +13768,10 @@
 		            this.state = 42;
 		            this.match(fhirpathParser.T__0);
 		            this.state = 43;
-		            localctx.a = this.expr(0);
+		            localctx._expr = this.expr(0);
 		            this.state = 44;
 		            this.match(fhirpathParser.T__1);
-		            localctx.ret = localctx.a.ret
+		            localctx.ret = [localctx.ret]
 		            break;
 
 		        case 2:
@@ -13887,7 +13818,7 @@
 		                        this.consume();
 		                    }
 		                    this.state = 57;
-		                    localctx.b = this.expr(9);
+		                    localctx.b = localctx._expr = this.expr(9);
 		                    localctx.ret= [(localctx.op===null ? null : localctx.op.text), localctx.a.ret, localctx.b.ret]
 		                    break;
 
@@ -13909,7 +13840,7 @@
 		                        this.consume();
 		                    }
 		                    this.state = 62;
-		                    localctx.b = this.expr(8);
+		                    localctx.b = localctx._expr = this.expr(8);
 		                    localctx.ret= [(localctx.op===null ? null : localctx.op.text), localctx.a.ret, localctx.b.ret]
 		                    break;
 
@@ -13931,7 +13862,7 @@
 		                        this.consume();
 		                    }
 		                    this.state = 67;
-		                    localctx.b = this.expr(7);
+		                    localctx.b = localctx._expr = this.expr(7);
 		                    localctx.ret= [(localctx.op===null ? null : localctx.op.text), localctx.a.ret, localctx.b.ret]
 		                    break;
 
@@ -13946,7 +13877,7 @@
 		                    this.state = 71;
 		                    localctx.op = this.match(fhirpathParser.COMP);
 		                    this.state = 72;
-		                    localctx.b = this.expr(6);
+		                    localctx.b = localctx._expr = this.expr(6);
 		                    localctx.ret= [(localctx.op===null ? null : localctx.op.text), localctx.a.ret, localctx.b.ret]
 		                    break;
 
@@ -13961,7 +13892,7 @@
 		                    this.state = 76;
 		                    localctx.op = this.match(fhirpathParser.LOGIC);
 		                    this.state = 77;
-		                    localctx.b = this.expr(5);
+		                    localctx.b = localctx._expr = this.expr(5);
 		                    localctx.ret= [(localctx.op===null ? null : localctx.op.text), localctx.a.ret, localctx.b.ret]
 		                    break;
 
