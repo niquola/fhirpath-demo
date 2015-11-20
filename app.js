@@ -124,7 +124,8 @@
 	    try {
 	      result = fpath(resource, $scope.path);
 	      $scope.result = JSON.stringify(result[1], null, "  ");
-	      return $scope.errors = null;
+	      $scope.errors = null;
+	      return $scope.error = null;
 	    } catch (error1) {
 	      e = error1;
 	      if (e.errors) {
