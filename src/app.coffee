@@ -13,7 +13,7 @@ app = angular.module('app', [
   'ngRoute'
   'ngAnimate'
   'ui.codemirror'
-  # 'firebase'
+  'firebase'
 ])
 
 app.run ($rootScope, $window) ->
@@ -29,15 +29,44 @@ app.config ($routeProvider) ->
   rp.otherwise templateUrl: '404.jade'
 
 
-app.controller 'IndexCtrl', ($scope) ->
+
+app.controller 'IndexCtrl', ($scope, $firebaseObject) ->
+
+  fbRef = new Firebase("https://fhirpath.firebaseio.com/")
+  $scope.examples = $firebaseObject(fbRef);
+
+  Save = (data, cb)->
+    return unless data or data.name
+    ref = new Firebase("https://fhirpath.firebaseio.com/#{data.name}")
+    obj = $firebaseObject(ref);
+    obj.$loaded().then ->
+      console.log("loaded", obj)
+      obj.path = data.path
+      obj.name = data.name
+      obj.resource = data.resource
+      obj.$save().then ->
+        cb()
+
+
+  $scope.saveExample = ()->
+    $scope.saving = "Saving..."
+    Save path: $scope.path, name: $scope.exampleName, resource: $scope.resource, ->
+      $scope.saving = null
+
   $scope.path = 'Patient.name.given |  Patient.name.given'
   $scope.resource = '{"resourceType": "Patient", "name": [{"given": ["John"]}]}'
   $scope.update = ()->
     try
-      console.log($scope.path)
-      result = fpath(JSON.parse($scope.resource),$scope.path)
+      resource = JSON.parse($scope.resource)
+      $scope.parseError = null
+    catch e
+      $scope.parseError = e.toString()
+      return
+
+    try
+      result = fpath(resource, $scope.path)
       $scope.result = JSON.stringify(result[1], null, "  ")
-      $scope.errors = []
+      $scope.errors = null
     catch e
       if e.errors
         $scope.errors = e.errors
@@ -47,7 +76,12 @@ app.controller 'IndexCtrl', ($scope) ->
         # throw e
   $scope.update()
 
-  console.log('here')
+  $scope.selectExample = (ex)->
+    $scope.resource = ex.resource
+    $scope.path = ex.path
+    $scope.exampleName = ex.name
+    $scope.update()
+
   codemirrorExtraKeys = window.CodeMirror.normalizeKeyMap
     "Ctrl-Space": () ->
       $scope.$apply('doMapping()')
@@ -61,3 +95,4 @@ app.controller 'IndexCtrl', ($scope) ->
     mode: 'javascript'
     extraKeys: codemirrorExtraKeys,
     viewportMargin: Infinity
+

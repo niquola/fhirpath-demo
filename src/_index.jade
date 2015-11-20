@@ -1,19 +1,37 @@
 .main-menu.row
   .container
-    .col-xs-12
-        h3 fhir path demo
+    .col-xs-10
+        h3 
+          | FHIRpath
+          small  fhir path implementation in js
+    .col-xs-2
+      h3
+        a(href="https://github.com/jmandel/fhirpath.js") src/
+.container
+  br
+  | Examples: &nbsp;
+  span(ng-repeat="(k,ex) in examples")
+   a(ng-click="selectExample(ex)") {{ex.name}} 
+   &nbsp;
 .container
   br
   .row
-    .col-xs-12
+    .col-xs-8
       input.form-control(placeholder="fhir path" ng-model="path" ng-change="update()")
       br
-      .alert.alert-danger(ng-if = "errors.length > 0")
+      .alert.alert-danger(ng-if = "errors")
         ul(ng-repeat = "er in errors")
           li {{er[4]}}
       .alert.alert-danger(ng-if = "error") {{error}}
+    .col-xs-3
+      input.form-control(placeholder="Save as" ng-model="exampleName")
+    .col-xs-1
+      button.btn.btn-success(ng-click="saveExample()") Save
   .row
-    .col-xs-6
+    .col-xs-8
       textarea.fh.form-control(ng-model="resource" ui-codemirror="codemirrorConfig" ng-change="update()")
-    .col-xs-6
+      br
+      .alert.alert-danger(ng-if = "parseError") {{parseError}}
+      
+    .col-xs-4
       textarea.fh.form-control(ng-model="result" ui-codemirror="codemirrorConfig")
