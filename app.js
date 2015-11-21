@@ -90,7 +90,6 @@
 	    ref = new Firebase("https://fhirpath.firebaseio.com/" + data.name);
 	    obj = $firebaseObject(ref);
 	    return obj.$loaded().then(function() {
-	      console.log("loaded", obj);
 	      obj.path = data.path;
 	      obj.name = data.name;
 	      obj.resource = data.resource;
@@ -122,15 +121,15 @@
 	      return;
 	    }
 	    try {
-	      result = fpath(resource, $scope.path);
-	      $scope.result = JSON.stringify(result[1], null, "  ");
+	      result = fpath.evaluate(resource, $scope.path);
+	      $scope.result = JSON.stringify(result, null, "  ");
 	      $scope.errors = null;
 	      return $scope.error = null;
 	    } catch (error1) {
 	      e = error1;
 	      if (e.errors) {
 	        $scope.errors = e.errors;
-	        return console.log("ERROR", e.errors);
+	        return console.error("ERROR", e.errors);
 	      } else {
 	        return $scope.error = e.toString();
 	      }
