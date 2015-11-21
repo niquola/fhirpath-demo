@@ -417,6 +417,7 @@
 		var antlr4 = __webpack_require__(1);
 		var fhirpath = __webpack_require__(46);
 		var util = __webpack_require__(50);
+
 		var coerce = {
 		    integer: function integer(v) {
 		        if (!util.isArray(v)) {
@@ -443,28 +444,43 @@
 		    }
 		};
 
+		Array.prototype.flatMap = function (lambda) {
+		    return Array.prototype.concat.apply([], this.map(lambda));
+		};
+
 		var applyToEach = function applyToEach(fn) {
-		    return function (coll) {
-		        for (var _len = arguments.length, rest = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-		            rest[_key - 1] = arguments[_key];
+		    return function (coll, context) {
+		        for (var _len = arguments.length, rest = Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
+		            rest[_key - 2] = arguments[_key];
 		        }
 
 		        return coll.flatMap(function (item) {
-		            return fn.apply(null, [item].concat(rest));
+		            return fn.apply(null, [item, context].concat(rest));
 		        });
 		    };
 		};
 
 		var resolveArguments = function resolveArguments(fn) {
-		    return function (coll) {
-		        for (var _len2 = arguments.length, rest = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-		            rest[_key2 - 1] = arguments[_key2];
+		    return function (coll, context) {
+		        for (var _len2 = arguments.length, rest = Array(_len2 > 2 ? _len2 - 2 : 0), _key2 = 2; _key2 < _len2; _key2++) {
+		            rest[_key2 - 2] = arguments[_key2];
 		        }
 
-		        return fn.apply(null, [coll].concat(rest.map(function (i) {
-		            return execute(coll, i);
+		        return fn.apply(null, [coll, context].concat(rest.map(function (i) {
+		            return run(coll, withTree(context, i));
 		        })));
 		    };
+		};
+
+		var uniqueValueMap = function uniqueValueMap(rows) {
+		    return rows.reduce(function (all, val) {
+		        all[JSON.stringify(val)] = true;
+		        return all;
+		    }, {});
+		};
+
+		var countUniqueValues = function countUniqueValues(rows) {
+		    return Object.keys(uniqueValueMap(rows)).length;
 		};
 
 		var allPaths = function allPaths(item) {
@@ -474,7 +490,7 @@
 		};
 
 		var functionBank = {
-		    "$path": applyToEach(function (item, segment, recurse) {
+		    "$path": applyToEach(function (item, context, segment, recurse) {
 		        if (item.resourceType && item.resourceType === segment) {
 		            return item;
 		        }
@@ -491,18 +507,20 @@
 		            return !!x;
 		        });
 		    }),
-		    "$axis": applyToEach(function (item, axis) {
+		    "$axis": applyToEach(function (item, context, axis) {
 		        if (axis === "*") return (typeof item === 'undefined' ? 'undefined' : _typeof(item)) === "object" ? Object.keys(item).flatMap(function (s) {
 		            return item[s];
 		        }).filter(function (x) {
 		            return !!x;
 		        }) : item;
 		        if (axis === "**") return allPaths(item).slice(1);
+		        if (axis === "$context") return context.root;
+		        throw new Error("Unsupported asis: " + axis);
 		    }),
-		    "$where": applyToEach(function (item, conditions) {
-		        return coerce.boolean(execute([item], conditions)) ? [item] : [];
+		    "$where": applyToEach(function (item, context, conditions) {
+		        return coerce.boolean(run([item], withTree(context, conditions))) ? [item] : [];
 		    }),
-		    "$constant": function $constant(_, val) {
+		    "$constant": function $constant(_, context, val) {
 		        return [val];
 		    },
 		    "$first": function $first(coll) {
@@ -514,17 +532,17 @@
 		    "$tail": function $tail(coll) {
 		        return coll.slice(1);
 		    },
-		    "$item": resolveArguments(function (coll, i) {
+		    "$item": resolveArguments(function (coll, context, i) {
 		        return coll.slice(i, i + 1);
 		    }),
-		    "$skip": resolveArguments(function (coll, i) {
+		    "$skip": resolveArguments(function (coll, context, i) {
 		        return coll.slice(i);
 		    }),
-		    "$take": resolveArguments(function (coll, i) {
+		    "$take": resolveArguments(function (coll, context, i) {
 		        return coll.slice(0, i);
 		    }),
 		    // TODO: Clarify what collections are accepted by substring
-		    "$substring": resolveArguments(function (coll, start, count) {
+		    "$substring": resolveArguments(function (coll, context, start, count) {
 		        if (coll.length !== 1) return [];
 		        if (typeof coll[0] !== "string") return [];
 		        var input = coll[0];
@@ -537,20 +555,35 @@
 		    "$not": function $not(coll) {
 		        return [!coerce.boolean(coll)];
 		    },
-		    "$all": function $all(coll, conditions) {
+		    "$all": function $all(coll, context, conditions) {
 		        return [functionBank.$where(coll, conditions).length === coll.length];
 		    },
-		    "$any": function $any(coll, conditions) {
-		        return [functionBank.$where(coll, conditions).length > 0];
+		    "$any": function $any(coll, context, conditions) {
+		        return [functionBank.$where(coll, context, conditions).length > 0];
 		    },
 		    "$count": function $count(coll) {
 		        return [coll.length];
 		    },
+		    "$lookup": function $lookup(coll, context, tag) {
+		        return [lookup(tag, context)];
+		    },
+
 		    // TODO how does asInteger convert "5.6", or *numbers* e.g. from count()?
-		    "$asInteger": resolveArguments(function (coll) {
+		    "$asInteger": resolveArguments(function (coll, context) {
 		        var val = coerce.integer(coll);
 		        return isNaN(val) ? [] : [val];
-		    })
+		    }),
+		    "$distinct": function $distinct(coll, context) {
+		        for (var _len3 = arguments.length, rest = Array(_len3 > 2 ? _len3 - 2 : 0), _key3 = 2; _key3 < _len3; _key3++) {
+		            rest[_key3 - 2] = arguments[_key3];
+		        }
+
+		        return [coll.length === countUniqueValues(coll.map(function (item) {
+		            return rest.map(function (path) {
+		                return run([item], withTree(context, path));
+		            });
+		        }))];
+		    }
 		};
 
 		// TODO startsWith probably needs an argument
@@ -565,6 +598,11 @@
 		var operatorBank = {
 		    "=": function _(lhs, rhs) {
 		        return [JSON.stringify(lhs) === JSON.stringify(rhs)];
+		    },
+		    "!=": function _(lhs, rhs) {
+		        return operatorBank["="](lhs, rhs).map(function (x) {
+		            return !x;
+		        });
 		    },
 		    "|": function _(lhs, rhs) {
 		        return lhs.concat(rhs);
@@ -589,38 +627,100 @@
 		    },
 		    "xor": function xor(lhs, rhs) {
 		        return [coerce.boolean(lhs) !== coerce.boolean(rhs)];
-		    }
+		    },
+		    "in": function _in(lhs, rhs) {
+		        var lhsMap = uniqueValueMap(lhs);
+		        var rhsMap = uniqueValueMap(rhs);
+		        return [Object.keys(lhsMap).every(function (k) {
+		            return k in rhsMap;
+		        })];
+		    },
+		    "~": function _(lhs, rhs) {
+		        return [JSON.stringify(lhs.map(JSON.stringify).sort()) === JSON.stringify(rhs.map(JSON.stringify).sort())];
+		    },
+		    "!~": function _(lhs, rhs) {
+		        return operatorBank["~"](lhs, rhs).map(function (x) {
+		            return !x;
+		        });
+		    },
+		    ">": whenSingle(function (lhs, rhs) {
+		        return [lhs[0] > rhs[0]];
+		    }),
+		    "<": whenSingle(function (lhs, rhs) {
+		        return [lhs[0] < rhs[0]];
+		    }),
+		    ">=": whenSingle(function (lhs, rhs) {
+		        return [lhs[0] >= rhs[0]];
+		    }),
+		    "<=": whenSingle(function (lhs, rhs) {
+		        return [lhs[0] <= rhs[0]];
+		    })
 		};
 
-		Array.prototype.flatMap = function (lambda) {
-		    return Array.prototype.concat.apply([], this.map(lambda));
+		var withTree = function withTree(context, tree) {
+		    return Object.assign({}, context, { tree: tree });
 		};
 
-		//ex = process.argv[2];
+		function run(coll, context) {
 
-		function execute(coll, tree) {
-
-		    if (!util.isArray(tree[0])) {
-		        return execute(coll, [tree]);
+		    if (!util.isArray(context.tree[0])) {
+		        return run(coll, withTree(context, [context.tree]));
 		    }
 
-		    return tree.reduce(function (coll, cur) {
+		    return context.tree.reduce(function (coll, cur) {
 		        if (util.isArray(cur[0])) {
-		            return [coll].concat(execute(coll, cur[0]));
+		            return [coll].concat(run(coll, withTree(context, cur[0])));
 		        }
+
 		        var fnName = cur[0];
 		        var fn = functionBank[fnName];
-		        if (fn) return fn.apply(null, [coll].concat(cur.slice(1)));
+		        if (fn) {
+		            return fn.apply(null, [coll, context].concat(cur.slice(1)));
+		        }
 
-		        return operatorBank[fnName](execute(coll, cur[1]), execute(coll, cur[2]));
+		        return operatorBank[fnName](run(coll, withTree(context, cur[1])), run(coll, withTree(context, cur[2])));
 		    }, coll);
 		}
 
-		module.exports = function (resource, path) {
-		    var tree = fhirpath.parse(path);
-		    var result = execute([resource], tree);
-		    return [tree, result];
+		var defaultLookups = {
+		    "sct": "http://snomed.info/sct",
+		    "loinc": "http://loinc.org",
+		    "ucum": "http://unitsofmeasure.org",
+		    "vs-": "http://hl7.org/fhir/ValueSet/",
+		    "ext-": "http://hl7.org/fhir/StructureDefinition/"
 		};
+
+		var lookup = function lookup(tag, context) {
+
+		    if (context.lookups[tag]) {
+		        return context.lookups[tag];
+		    }
+
+		    var m = tag.match(/(.*?-)(.*)/);
+		    if (m && context.lookups[m[1]]) {
+		        return context.lookups[m[1]] + m[2];
+		    }
+
+		    throw new Error('Undefined lookup tag: %' + tag + '.\n                     We know: ' + Object.keys(context.lookups));
+		};
+
+		var withConstants = function withConstants(lookups) {
+		    return {
+		        parse: function parse(path) {
+		            return fhirpath.parse(path);
+		        },
+		        evaluate: function evaluate(resource, path, localLookups) {
+		            return run([resource], {
+		                tree: fhirpath.parse(path),
+		                lookups: Object.assign({}, lookups || {}, localLookups || {}, defaultLookups),
+		                root: resource
+		            });
+		        }
+		    };
+		};
+
+		module.exports = withConstants({});
+		module.exports.withConstants = withConstants;
 
 	/***/ },
 	/* 1 */
@@ -14696,7 +14796,7 @@
 		            this.enterOuterAlt(localctx, 4);
 		            this.state = 159;
 		            localctx._CONST = this.match(fhirpathParser.CONST);
-		            localctx.ret = ["$"+"lookup", "'"+(localctx._CONST===null ? null : localctx._CONST.text)+"'"]
+		            localctx.ret = ["$"+"lookup", (localctx._CONST===null ? null : localctx._CONST.text).slice(1)]
 		            break;
 		        default:
 		            throw new antlr4.error.NoViableAltException(this);
